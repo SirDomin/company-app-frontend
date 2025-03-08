@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Company & Employee Management</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f4f4f4; }
+    .btn { padding: 5px 10px; margin: 2px; cursor: pointer; }
+    .btn-primary { background-color: #007bff; color: white; border: none; }
+    .btn-danger { background-color: #dc3545; color: white; border: none; }
+    .btn-warning { background-color: #ffc107; color: black; border: none; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 20px; border-radius: 5px; width: 300px; }
+    input { border: solid 1px black; }
+    input.error { border: 1px solid red; }
+    .modal-content div { display: flex; flex-direction: column;  margin-bottom: 10px; }
+    .modal-content input { height: 15px; padding: 5px; margin-bottom: 5px; margin-top: 5px; }
+    .modal-content span { color: red; font-weight: bold; font-size: 12px; }
+  </style>
+</head>
+<body>
+<h1>Company Management</h1>
+<button class="btn btn-primary" onclick="openCompanyModal()">Create Company</button>
+<table>
+  <thead>
+  <tr>
+    <th>Name</th>
+    <th>VAT</th>
+    <th>City</th>
+    <th>Post Code</th>
+    <th>Actions</th>
+  </tr>
+  </thead>
+  <tbody id="companyList"></tbody>
+</table>
+
+<h1>Employee Management</h1>
+<h1 id="selectedCompany"></h1>
+<button class="btn btn-primary" onclick="openEmployeeModal()">Create Employee</button>
+<table>
+  <thead>
+  <tr>
+    <th>First Name</th>
+    <th>Last Name</th>
+    <th>Email</th>
+    <th>Phone Number</th>
+    <th>Actions</th>
+  </tr>
+  </thead>
+  <tbody id="employeeList" ></tbody>
+</table>
+
+<div id="companyModal" class="modal">
+  <div class="modal-content">
+    <h2>Company</h2>
+    <input type="hidden" id="company-id">
+    <div>
+      <label for="company-name">Name</label>
+      <input type="text" id="company-name" placeholder="Name">
+      <span id="company-error-name"></span>
+    </div>
+    <div>
+      <label for="company-vat">VAT</label>
+      <input type="text" id="company-vat" placeholder="VAT">
+      <span id="company-error-vat"></span>
+    </div>
+    <div>
+      <label for="company-address">Address</label>
+      <input type="text" id="company-address" placeholder="Address">
+      <span id="company-error-address"></span>
+    </div>
+    <div>
+      <label for="company-city">City</label>
+      <input type="text" id="company-city" placeholder="City">
+      <span id="company-error-city"></span>
+    </div>
+    <div>
+      <label for="company-postCode">PostCode</label>
+      <input type="text" id="company-postCode" placeholder="Post Code">
+      <span id="company-error-postCode"></span>
+    </div>
+    <button class="btn btn-primary" onclick="saveCompany()">Save</button>
+    <button class="btn btn-danger" onclick="closeModal('companyModal')">Close</button>
+  </div>
+</div>
+
+<div id="employeeModal" class="modal">
+  <div class="modal-content">
+    <h2>Employee</h2>
+    <input type="hidden" id="employee-id">
+    <div>
+      <label for="employee-firstName">First Name</label>
+      <input type="text" id="employee-firstName" placeholder="First Name">
+      <span id="employee-error-firstName"></span>
+    </div>
+    <div>
+      <label for="employee-lastName">Last Name</label>
+      <input type="text" id="employee-lastName" placeholder="Last Name">
+      <span id="employee-error-lastName"></span>
+    </div>
+    <div>
+      <label for="employee-email">Email</label>
+      <input type="text" id="employee-email" placeholder="Email">
+      <span id="employee-error-email"></span>
+    </div>
+    <div>
+      <label for="employee-phoneNumber">Phone Number</label>
+      <input type="email" id="employee-phoneNumber" placeholder="Phone Number">
+      <span id="employee-error-phoneNumber"></span>
+    </div>
+    <button class="btn btn-primary" onclick="saveEmployee()">Save</button>
+    <button class="btn btn-danger" onclick="closeModal('employeeModal')">Close</button>
+  </div>
+</div>
+
+<script>
+  const API_URL = 'https://sirdomin.pl:8090/api';
+
+  const selectedCompanyHeader = document.getElementById('selectedCompany');
+
+  let selectedCompanyId = null;
+
+  function openCompanyModal(company = null) {
+    resetInputErrors();
+
+    document.getElementById('company-id').value = company ? company.id : '';
+    document.getElementById('company-name').value = company ? company.name : '';
+    document.getElementById('company-vat').value = company ? company.vat : '';
+    document.getElementById('company-address').value = company ? company.address : '';
+    document.getElementById('company-city').value = company ? company.city : '';
+    document.getElementById('company-postCode').value = company ? company.postCode : '';
+    document.getElementById('companyModal').style.display = 'flex';
+  }
+
+  function openEmployeeModal(employee = null) {
+
+    resetInputErrors();
+
+    document.getElementById('employee-id').value = employee ? employee.id : '';
+    document.getElementById('employee-firstName').value = employee ? employee.firstName : '';
+    document.getElementById('employee-lastName').value = employee ? employee.lastName : '';
+    document.getElementById('employee-email').value = employee ? employee.email : '';
+    document.getElementById('employee-phoneNumber').value = employee ? employee.phoneNumber : '';
+    document.getElementById('employeeModal').style.display = 'flex';
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+  }
+
+  async function saveCompany() {
+    resetInputErrors();
+
+    const id = document.getElementById('company-id').value;
+    const company = {
+      name: document.getElementById('company-name').value,
+      vat: document.getElementById('company-vat').value,
+      address: document.getElementById('company-address').value,
+      city: document.getElementById('company-city').value,
+      postCode: document.getElementById('company-postCode').value,
+    };
+    await fetch(`${API_URL}/companies${id ? `/${id}` : ''}`, {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(company)
+    }).then(data => data.json()).then(data => {
+      if (data.error) {
+        for (const field in data.fields) {
+          if (data.fields.hasOwnProperty(field)) {
+            document.getElementById(`company-${field}`).classList.add('error');
+            document.getElementById(`company-error-${field}`).innerText = data.fields[field];
+          }
+        }
+
+        return;
+      }
+
+      loadCompanies();
+      closeModal('companyModal');
+    });
+  }
+
+  async function saveEmployee() {
+    resetInputErrors();
+
+    const id = document.getElementById('employee-id').value;
+    const employee = {
+      firstName: document.getElementById('employee-firstName').value,
+      lastName: document.getElementById('employee-lastName').value,
+      email: document.getElementById('employee-email').value,
+      phoneNumber: document.getElementById('employee-phoneNumber').value,
+      company: selectedCompanyId
+    };
+    await fetch(`${API_URL}/employees${id ? `/${id}` : ''}`, {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(employee)
+    }).then(data => data.json()).then(data => {
+      if (data.error) {
+        for (const field in data.fields) {
+          if (data.fields.hasOwnProperty(field)) {
+            document.getElementById(`employee-${field}`).classList.add('error');
+            document.getElementById(`employee-error-${field}`).innerText = data.fields[field];
+          }
+        }
+
+        return;
+      }
+
+      loadEmployees();
+      closeModal('employeeModal');
+    });
+  }
+
+  async function deleteCompany(id) {
+    await fetch(`${API_URL}/companies/${id}`, { method: 'DELETE' });
+    loadCompanies();
+  }
+
+  async function deleteEmployee(id) {
+    await fetch(`${API_URL}/employees/${id}`, { method: 'DELETE' });
+    loadEmployees();
+  }
+
+  async function loadCompanies() {
+    const response = await fetch(`${API_URL}/companies`);
+    const data = await response.json();
+    const companyList = document.getElementById('companyList');
+
+    companyList.innerHTML = '';
+    data.data.forEach(company => {
+      if (selectedCompanyId === null) {
+        selectedCompanyId = company.id;
+        loadEmployees(company);
+      }
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+                    <td>${company.name}</td>
+                    <td>${company.vat}</td>
+                    <td>${company.city}</td>
+                    <td>${company.postCode}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick='loadEmployees(${JSON.stringify(company)})'>View</button>
+                        <button class="btn btn-warning" onclick='openCompanyModal(${JSON.stringify(company)})'>Edit</button>
+                        <button class="btn btn-danger" onclick='deleteCompany(${company.id})'>Delete</button>
+                    </td>
+                `;
+      companyList.appendChild(row);
+
+      if (selectedCompanyId === company.id) {
+        row.classList.add('active');
+      }
+    });
+  }
+
+  async function loadEmployees(company) {
+    let companyId = selectedCompanyId;
+    if (company) {
+      selectedCompanyHeader.innerHTML = company.name;
+      selectedCompanyId = company.id;
+      companyId = company.id;
+    }
+    const response = await fetch(`${API_URL}/companies/${companyId}/employees`);
+    const data = await response.json();
+    const employeeList = document.getElementById('employeeList');
+
+    employeeList.innerHTML = '';
+    data.data.forEach(employee => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+                    <td>${employee.firstName}</td>
+                    <td>${employee.lastName}</td>
+                    <td>${employee.email}</td>
+                    <td>${employee.phoneNumber}</td>
+                    <td>
+                        <button class="btn btn-warning" onclick='openEmployeeModal(${JSON.stringify(employee)})'>Edit</button>
+                        <button class="btn btn-danger" onclick='deleteEmployee(${employee.id})'>Delete</button>
+                    </td>
+                `;
+      employeeList.appendChild(row);
+    });
+  }
+
+  function resetInputErrors() {
+    [...document.getElementsByTagName('span')].forEach((el) => {
+      el.innerText = '';
+    });
+
+    [...document.getElementsByTagName('input')].forEach((el) => {
+      el.classList.remove('error');
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', loadCompanies);
+</script>
+</body>
+</html>
