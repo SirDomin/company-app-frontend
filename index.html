@@ -96,11 +96,34 @@
     .active {
       background-color: #444;
     }
+    .btn.active {
+      background-color: #3867cc;
+      border: solid 1px #444;
+    }
+    .search input {
+      height: 30px;
+      padding: 5px;
+      margin-bottom: 5px;
+      margin-top: 5px;
+    }
+    .pagination {
+      display: grid;
+      grid-template-columns: 0.2fr 1fr;
+    }
   </style>
 </head>
 <body>
 <h1>Company Management</h1>
 <button class="btn btn-primary" onclick="openCompanyModal()">Create Company</button>
+<div class="pagination" id="companyPagination">
+  <div class="search">
+    <label for="companySearch"></label>
+    <input type="text" id="companySearch" placeholder="Search Company">
+  </div>
+  <div class="pages">
+
+  </div>
+</div>
 <table>
   <thead>
   <tr>
@@ -114,9 +137,17 @@
   <tbody id="companyList"></tbody>
 </table>
 
-<h1>Employee Management</h1>
-<h1 id="selectedCompany"></h1>
+<h1 id="selectedCompany">Employee Management</h1>
 <button class="btn btn-primary" onclick="openEmployeeModal()">Create Employee</button>
+<div class="pagination" id="employeePagination">
+  <div class="search">
+    <label for="employeeSearch"></label>
+    <input type="text" id="employeeSearch" placeholder="Search Employee">
+  </div>
+  <div class="pages">
+
+  </div>
+</div>
 <table>
   <thead>
   <tr>
@@ -199,6 +230,24 @@
   const selectedCompanyHeader = document.getElementById('selectedCompany');
 
   let selectedCompanyId = null;
+
+  let companyPagination = {
+    page: 1,
+    limit: 10,
+    pages: 0,
+    total: 0,
+    search: '',
+  }
+
+  let employeePagination = {
+    page: 1,
+    limit: 10,
+    pages: 0,
+    total: 0,
+    search: '',
+  }
+
+  let debounceTimeout = null;
 
   function openCompanyModal(company = null) {
     resetInputErrors();
@@ -294,16 +343,17 @@
 
   async function deleteCompany(id) {
     await fetch(`${API_URL}/companies/${id}`, { method: 'DELETE' });
-    loadCompanies();
+    await loadCompanies();
+    await loadEmployees();
   }
 
   async function deleteEmployee(id) {
     await fetch(`${API_URL}/employees/${id}`, { method: 'DELETE' });
-    loadEmployees();
+    await loadEmployees();
   }
 
   async function loadCompanies() {
-    const response = await fetch(`${API_URL}/companies`);
+    const response = await fetch(`${API_URL}/companies?page=${companyPagination.page}&limit=${companyPagination.limit}&search=${companyPagination.search}`);
     const data = await response.json();
     const companyList = document.getElementById('companyList');
 
@@ -315,6 +365,7 @@
       }
 
       const row = document.createElement('tr');
+      row.id = `company-${company.id}`;
       row.innerHTML = `
                     <td>${company.name}</td>
                     <td>${company.vat}</td>
@@ -332,16 +383,26 @@
         row.classList.add('active');
       }
     });
+
+    updateCompanyPagination(data);
   }
 
   async function loadEmployees(company) {
     let companyId = selectedCompanyId;
     if (company) {
-      selectedCompanyHeader.innerHTML = company.name;
+      selectedCompanyHeader.innerHTML = company.name + ' - Employee Management';
       selectedCompanyId = company.id;
       companyId = company.id;
+
+      const activeCompany = document.getElementById(`company-${company.id}`);
+
+      if (activeCompany) {
+        document.getElementsByClassName('active')[0].classList.remove('active');
+
+        activeCompany.classList.add('active');
+      }
     }
-    const response = await fetch(`${API_URL}/companies/${companyId}/employees`);
+    const response = await fetch(`${API_URL}/companies/${companyId}/employees?page=${employeePagination.page}&limit=${employeePagination.limit}&search=${employeePagination.search}`);
     const data = await response.json();
     const employeeList = document.getElementById('employeeList');
 
@@ -360,6 +421,8 @@
                 `;
       employeeList.appendChild(row);
     });
+
+    updateEmployeePagination(data);
   }
 
   function resetInputErrors() {
@@ -371,6 +434,110 @@
       el.classList.remove('error');
     });
   }
+
+  function updateCompanyPagination(data) {
+    const pagesContainer = document.querySelector("#companyPagination .pages");
+    pagesContainer.innerHTML = "";
+
+    for (let i = 1; i <= data.pages; i++) {
+      const button = document.createElement("button");
+      button.classList.add('btn-primary');
+      button.classList.add('btn')
+      if (i === data.page) {
+        button.classList.add('active');
+      }
+      button.textContent = i;
+      button.dataset.page = i;
+      button.classList.add("pagination-button");
+
+      pagesContainer.appendChild(button);
+    }
+
+    const searchContainer = document.querySelector("#companyPagination .search");
+    let totalInfo = searchContainer.querySelector(".total-info");
+
+    if (!totalInfo) {
+      totalInfo = document.createElement("div");
+      totalInfo.classList.add("total-info");
+      searchContainer.appendChild(totalInfo);
+    }
+
+    totalInfo.textContent = `Showing ${Math.min(data.total, data.limit)} of ${data.total} records`;
+
+    companyPagination.pages = data.pages;
+    companyPagination.total = data.total;
+  }
+
+  function updateEmployeePagination(data) {
+    const pagesContainer = document.querySelector("#employeePagination .pages");
+    pagesContainer.innerHTML = "";
+
+    for (let i = 1; i <= data.pages; i++) {
+      const button = document.createElement("button");
+      button.classList.add('btn-primary');
+      button.classList.add('btn');
+      if (i === data.page) {
+        button.classList.add('active');
+      }
+      button.textContent = i;
+      button.dataset.page = i;
+      button.classList.add("pagination-button");
+
+      pagesContainer.appendChild(button);
+    }
+
+    const searchContainer = document.querySelector("#employeePagination .search");
+    let totalInfo = searchContainer.querySelector(".total-info");
+
+    if (!totalInfo) {
+      totalInfo = document.createElement("div");
+      totalInfo.classList.add("total-info");
+      searchContainer.appendChild(totalInfo);
+    }
+
+    totalInfo.textContent = `Showing ${Math.min(data.total, data.limit)} of ${data.total} employees`;
+
+    employeePagination.pages = data.pages;
+    employeePagination.total = data.total;
+  }
+
+  const companyPaginationElement = document.getElementById('companyPagination');
+
+  companyPaginationElement.addEventListener('input', (event) => {
+    clearTimeout(debounceTimeout);
+    companyPagination.search = event.target.value;
+
+    debounceTimeout = setTimeout(() => {
+      loadCompanies();
+    }, 500);
+  });
+
+  companyPaginationElement.addEventListener('click', (event) => {
+    if (event.target.tagName === 'BUTTON') {
+      companyPagination.page = event.target.getAttribute('data-page');
+
+      loadCompanies();
+    }
+  });
+
+  const employeePaginationElement = document.getElementById('employeePagination');
+
+  employeePaginationElement.addEventListener('input', (event) => {
+    clearTimeout(debounceTimeout);
+    employeePagination.search = event.target.value;
+
+    debounceTimeout = setTimeout(() => {
+      loadEmployees();
+    }, 500);
+  });
+
+  employeePaginationElement.addEventListener('click', (event) => {
+    if (event.target.tagName === 'BUTTON') {
+      employeePagination.page = event.target.getAttribute('data-page');
+
+      loadEmployees();
+    }
+  });
 
   document.addEventListener('DOMContentLoaded', loadCompanies);
 </script>
