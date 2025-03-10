@@ -397,7 +397,11 @@
       const activeCompany = document.getElementById(`company-${company.id}`);
 
       if (activeCompany) {
-        document.getElementById('companyList').getElementsByClassName('active')[0].classList.remove('active');
+        const activeElement = document.getElementById('companyList').getElementsByClassName('active');
+
+        if (activeElement.length) {
+          activeElement[0].classList.remove('active');
+        }
 
         activeCompany.classList.add('active');
       }
