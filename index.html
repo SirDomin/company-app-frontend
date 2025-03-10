@@ -397,7 +397,7 @@
       const activeCompany = document.getElementById(`company-${company.id}`);
 
       if (activeCompany) {
-        document.getElementsByClassName('active')[0].classList.remove('active');
+        document.getElementById('companyList').getElementsByClassName('active')[0].classList.remove('active');
 
         activeCompany.classList.add('active');
       }
